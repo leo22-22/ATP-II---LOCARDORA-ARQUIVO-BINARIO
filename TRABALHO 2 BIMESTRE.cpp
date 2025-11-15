@@ -1,4 +1,3 @@
-
 #include<stdio.h>
 #include<stdlib.h>
 #include<math.h>
@@ -132,6 +131,23 @@ char MenuExcluir(void){
 	
 }
 
+char MenuExcluirCliente(void){
+	ExibeTelao();
+	gotoxy(28,6);
+	textcolor(2);
+	printf("### MENU EXCLUIR ### ");
+	gotoxy(25,10);
+	printf("[A] Exclusao Logica");
+	gotoxy(25,11);
+	printf("[B] Exclusao Fisica");
+	gotoxy(25,12);
+	printf("[C] Voltar");
+	gotoxy(4,23);
+	printf("ESCOLHA A OPCAO: ");
+	return toupper(getch());
+	
+}
+
 char MenuAlterar(void){
 	ExibeTelao();
 	textcolor(2);
@@ -251,6 +267,168 @@ char Menu(void){
 		return toupper(getche());
 }
 
+int buscaSequencialIndexada(FILE *Ptr, char CPF_buscado[15]) {
+	TpCliente Cli; 
+	rewind(Ptr);
+	
+	fread(&Cli, sizeof(TpCliente), 1, Ptr); 
+
+	while(!feof(Ptr) && !(strcmp(Cli.CPF, CPF_buscado) >= 0 && Cli.Status == 1)) { 
+		fread(&Cli, sizeof(TpCliente), 1, Ptr);
+	}
+	
+	if (!feof(Ptr) && strcmp(Cli.CPF, CPF_buscado) == 0 && Cli.Status == 1)
+		return ftell(Ptr) - sizeof(TpCliente); 
+	else 
+		return -1; 
+}
+
+// Busca binária
+
+int buscaBinaria(FILE *Ptr, int cod) {
+    int inicio, meio, fim;
+    TpCarro Car;
+    
+    rewind(Ptr);
+    fseek(Ptr, 0, 2);
+    
+    inicio = 0;
+    fim = ftell(Ptr) / sizeof(TpCarro);
+
+    while (inicio < fim) {
+        meio = (inicio + fim) / 2;
+        
+        fseek(Ptr, meio * sizeof(TpCarro), 0);
+        fread(&Car, sizeof(TpCarro), 1, Ptr);
+
+        if (Car.Cod == cod && Car.Status == 1) {
+            return meio * sizeof(TpCarro);
+        }
+        
+        if (Car.Cod < cod) {
+            inicio = meio + 1;
+        }
+        else { 
+            fim = meio; 
+        }
+    }
+
+    return -1;
+}
+
+int buscaBinariaLoc(FILE *Ptr, char CPF_buscado[15]) {
+    int inicio, meio, fim;
+    TpLocacao Loc; 
+    
+    rewind(Ptr);
+    fseek(Ptr, 0, 2);
+    
+    inicio = 0;
+    fim = ftell(Ptr) / sizeof(TpLocacao); 
+
+    while (inicio < fim) {
+        meio = (inicio + fim) / 2;
+        
+        fseek(Ptr, meio * sizeof(TpLocacao), 0);
+        fread(&Loc, sizeof(TpLocacao), 1, Ptr);
+
+        if (strcmp(Loc.CPF, CPF_buscado) == 0 && Loc.Status == 1) {
+            return meio * sizeof(TpLocacao); 
+        }
+        if (strcmp(Loc.CPF, CPF_buscado) < 0) { 
+            inicio = meio + 1; 
+        }
+        else { 
+            fim = meio; 
+        }
+    }
+    return -1;
+}
+
+int BuscaAtivaCodCarLoc(FILE *Ptr, int AuxCod)
+{
+	TpLocacao Loc;
+	rewind(Ptr);
+	fread(&Loc,sizeof(TpLocacao),1,Ptr);
+	
+	while(!feof(Ptr) && !(AuxCod == Loc.Codigo && Loc.Status == 1))
+	{
+		fread(&Loc,sizeof(TpLocacao),1,Ptr);
+	}
+	
+	if(!feof(Ptr)) 
+		return ftell(Ptr)-sizeof(TpLocacao); 
+	else
+		return -1; 
+}
+
+// ### ORDENAÇÕES ###
+
+// Ordenação por inserção direta
+
+void insercaoDireta(FILE *Ptr) {
+	int tamanho;
+	TpCliente A,B;
+	fseek(Ptr, 0, 2);												
+	tamanho = ftell(Ptr) / sizeof(TpCliente);								
+	if (tamanho > 1) {														
+		do {
+			fseek(Ptr, (tamanho - 2) * sizeof(TpCliente), 0);		
+			fread(&A, sizeof(TpCliente), 1, Ptr);						
+			fread(&B, sizeof(TpCliente), 1, Ptr);						
+			if (strcmp(A.CPF,B.CPF) > 0) {										
+				fseek(Ptr, (tamanho - 2) * sizeof(TpCliente), 0);	
+				fwrite(&B, sizeof(TpCliente), 1, Ptr);					
+				fwrite(&A, sizeof(TpCliente), 1, Ptr);					
+			}
+			tamanho--;														
+		} while (tamanho > 1 && strcmp(A.CPF,B.CPF)>0);							
+	}
+}
+
+// Ordenação por seleção direta
+
+int buscarMaiorID(FILE *Ptr, int tamanho) { 
+	int maior_pos, maior, i;
+	TpCarro Car;
+	rewind(Ptr);							
+	fread(&Car, sizeof(TpCarro), 1, Ptr);
+	maior_pos = 0;							
+	maior = Car.Cod;							
+	for (i = 1; i < tamanho; i++) {
+		fseek(Ptr, i * sizeof(TpCarro), 0);	
+		fread(&Car, sizeof(TpCarro), 1, Ptr);			
+		if (maior < Car.Cod) {								
+			maior = Car.Cod;									
+			maior_pos = i;								
+		}
+	}
+	return maior_pos;
+}
+
+void selecaoDireta(FILE *Ptr) {
+	int maior_pos, tamanho, encerrado = 0;
+	TpCarro auxA, auxB;
+	fseek(Ptr, 0, 2);											
+	tamanho = ftell(Ptr) / sizeof(TpCarro);							
+	while (tamanho > 0 && !encerrado) {									
+		maior_pos = buscarMaiorID(Ptr, tamanho);						
+		if (maior_pos < tamanho - 1) {									
+			fseek(Ptr, maior_pos * sizeof(TpCarro), 0);		
+			fread(&auxA, sizeof(TpCarro), 1, Ptr);
+			fseek(Ptr, (tamanho - 1) * sizeof(TpCarro), 0);	
+			fread(&auxB, sizeof(TpCarro), 1, Ptr);
+			fseek(Ptr, maior_pos * sizeof(TpCarro), 0);		
+			fwrite(&auxB, sizeof(TpCarro), 1, Ptr);
+			fseek(Ptr, (tamanho - 1) * sizeof(TpCarro), 0);	
+			fwrite(&auxA, sizeof(TpCarro), 1, Ptr);
+			tamanho--;													
+		}
+		else encerrado = 1;												
+	}
+}
+
+
 
 int BuscaCliente(FILE *PtrArq,char CPFAux[15]){
 	TpCliente Cli;
@@ -264,18 +442,6 @@ int BuscaCliente(FILE *PtrArq,char CPFAux[15]){
 	else
 		return -1;
 }
-
-//int buscaCarro(TpCarro Car[TF], int TL, int Aux)
-//{
-//	int i=0;
-//	while(i<TL && Aux!=Car[i].Cod)
-//		i++;
-//	
-//	if(i<TL)
-//		return i;
-//	else
-//		return -1;
-//}
 
 int buscaCarroCategoria(FILE *Ptr, char Aux[15])
 {
@@ -319,18 +485,6 @@ int BuscaLocacaoInt(FILE *Ptr,int Aux)
 		return -1;
 }
 
-//int BuscaLocacao(TpLocacao Loc[TF], int TL,char CPFAux[15])
-//{
-//	int i=0;
-//	while(i<TL && strcmp(CPFAux,Loc[i].CPF)!=0)
-//		i++;
-//	
-//	if(i<TL)
-//		return i;
-//	else
-//		return -1;
-//}
-
 int BuscaLocacaoLimite(FILE *Ptr, float Aux)
 {
 	TpLocacao Loc;
@@ -344,31 +498,6 @@ int BuscaLocacaoLimite(FILE *Ptr, float Aux)
 	else
 		return -1;
 }
-
-//int BuscaExaustivaCarroCod(FILE *PtrCar,int AuxCar){
-//	TpCarro Car;
-//	rewind(PtrCar);
-//	fread(&Car,sizeof(TpCarro),1,PtrCar);
-//	while(!feof(PtrCar) && AuxCar != Car.Cod)
-//		fread(&Car,sizeof(TpCarro),1,PtrCar);
-//	
-//	if(!feof(PtrCar))
-//		return ftell(PtrCar)-sizeof(TpCarro);
-//	else
-//		return -1;
-//}
-
-
-//int BuscaIndexadaCPF(TpCliente Cli[TF], int TC, char Elem[15]){
-//	int i=0;
-//	while(i<TC && strcmp(Elem,Cli[i].CPF)!=0)
-//		i++;
-//		
-//	if(i<TC && strcmp(Elem,Cli[i].CPF)==0)
-//		return i;
-//	else
-//		return -1;
-//}
 
 int BuscaExaustivaCarroCodigo(FILE *Ptr, int Aux)
 {
@@ -461,19 +590,21 @@ int ExibeClientes()
 	fread(&Cliente,sizeof(TpCliente),1,PtrCli);
 	while(!feof(PtrCli))
 	{
-		gotoxy(13,8);
-		printf(" CPF   ||                Nome                  ||     FONE");
-		gotoxy(5,x);
-		printf(" %s ", Cliente.CPF);
-		gotoxy(20,x);
-		printf("||");
-		gotoxy(22,x);
-		printf(" %s ", Cliente.Nome);
-		gotoxy(60,x);
-		printf("||");
-		gotoxy(64,x);
-		printf(" %s ", Cliente.fone);
-		x++;
+		if(Cliente.Status==1){
+			gotoxy(13,8);
+			printf(" CPF   ||                Nome                  ||     FONE");
+			gotoxy(5,x);
+			printf(" %s ", Cliente.CPF);
+			gotoxy(20,x);
+			printf("||");
+			gotoxy(22,x);
+			printf(" %s ", Cliente.Nome);
+			gotoxy(60,x);
+			printf("||");
+			gotoxy(64,x);
+			printf(" %s ", Cliente.fone);
+			x++;
+		}
 		fread(&Cliente,sizeof(TpCliente),1,PtrCli);
 	}
 	fclose(PtrCli);
@@ -490,21 +621,24 @@ void ExibeCarro()
 	printf("### Exibe CARRO ###");
 	fread(&Car,sizeof(TpCarro),1,Ptr);
 	while(!feof(Ptr)){
-		gotoxy(13,8);
-		printf("Carro ||    Modelo     ||     Categoria     ||      Preco");
-		gotoxy(13,x);
-		printf(" %d  || ",Car.Cod);
-		gotoxy(24,x);
-		printf(" %s  ",Car.Modelo); 
-		gotoxy(36,x);
-		printf("||");
-		gotoxy(44,x);
-		printf(" %s  ",Car.Categoria); 
-		gotoxy(57,x);
-		printf("||");
-		gotoxy(64,x);
-		printf(" %.2f  ",Car.Preco); 
-		x++;
+		if(Car.Status==1)
+		{
+			gotoxy(13,8);
+			printf("Carro ||    Modelo     ||     Categoria     ||      Preco");
+			gotoxy(13,x);
+			printf(" %d  || ",Car.Cod);
+			gotoxy(24,x);
+			printf(" %s  ",Car.Modelo); 
+			gotoxy(36,x);
+			printf("||");
+			gotoxy(44,x);
+			printf(" %s  ",Car.Categoria); 
+			gotoxy(57,x);
+			printf("||");
+			gotoxy(64,x);
+			printf(" %.2f  ",Car.Preco); 
+			x++;
+		}
 		fread(&Car,sizeof(TpCarro),1,Ptr);
 	}		
 	fclose(Ptr);	
@@ -570,7 +704,7 @@ void CriarArquivos(void)
 	PtrArq = fopen("Carros.dat","ab");
 	fclose(PtrArq);
 	
-	PtrArq = fopen("Locacao","ab");
+	PtrArq = fopen("Locacao.dat","ab");
 	fclose(PtrArq);
 }
  
@@ -579,7 +713,7 @@ void CadastroCliente(void){
 	TpCliente Cliente;
 	char AuxCPF[15];
 	int pos, Valido,y=10;
-	FILE *PtrCli = fopen("Clientes.dat","ab+");
+	FILE *PtrCli = fopen("Clientes.dat","rb+");
 	ExibeTelaoResp();
 	gotoxy(27,6);
 	printf("### CADASTRO CLIENTE ###");
@@ -593,8 +727,9 @@ void CadastroCliente(void){
 		Valido = ValidaCPF(AuxCPF);
 		if(Valido == 1)
 		{
-			pos = BuscaCliente(PtrCli,AuxCPF);
-			if(pos== -1)
+			pos = buscaSequencialIndexada(PtrCli,AuxCPF); 
+			
+			if(pos == -1) 
 			{
 				strcpy(Cliente.CPF,AuxCPF);
 				gotoxy(4,9);
@@ -623,12 +758,15 @@ void CadastroCliente(void){
 				    y++;
 				    gotoxy(4,y);
 				    printf("DIGITE NOVAMENTE: ");
-				    fflush(stdin); // Limpa buffer
-				    gets(Cliente.fone); // idealmente trocar por fgets
+				    fflush(stdin); 
+				    gets(Cliente.fone); 
 				}
 				Cliente.Status = 1;
+				fseek(PtrCli, 0, 2);
 				fwrite(&Cliente,sizeof(TpCliente),1,PtrCli);
-				//InsertionSortCli(Cliente, TL);
+	
+				insercaoDireta(PtrCli); 
+				
 				ExibeTelaoResp();
 				gotoxy(27,6);
 				printf("### CADASTRO CLIENTE ###");
@@ -671,7 +809,7 @@ void CadastroCarroCodigo(){
 	int AuxC;
     int pos, y;
     ExibeTelaoResp();
-    FILE *PtrCar = fopen("Carros.dat","ab+");
+    FILE *PtrCar = fopen("Carros.dat","rb+");
     gotoxy(27,6);
     printf("### CADASTRO DE CARROS CODIGO ###");
     gotoxy(4,8);
@@ -681,7 +819,7 @@ void CadastroCarroCodigo(){
     while(AuxC > 0)
 	{
         y = 10;
-        pos = BuscaExaustivaCarroCodigo(PtrCar,AuxC);
+        pos = buscaBinaria(PtrCar,AuxC);
 
         if(pos == -1){ 
             Carro.Cod = AuxC;
@@ -718,9 +856,11 @@ void CadastroCarroCodigo(){
             printf("VALOR DA DIARIA: ");
             scanf("%f",&Carro.Preco);
 			Carro.Status = 1;
-            //SelectionSortCod(Carro, TC+1); 
 
+            fseek(PtrCar, 0, 2); 
             fwrite(&Carro,sizeof(TpCarro),1,PtrCar);
+
+            selecaoDireta(PtrCar);
 
             ExibeTelaoResp();
             gotoxy(27,6);
@@ -754,7 +894,7 @@ void CadastroCarroModelo(){
 	int AuxC;
     int pos, y;
     ExibeTelaoResp();
-    FILE *PtrCar = fopen("Carros.dat","ab+");
+    FILE *PtrCar = fopen("Carros.dat","rb+");
     gotoxy(27,6);
     printf("### CADASTRO DE CARROS CODIGO ###");
     gotoxy(4,8);
@@ -801,9 +941,10 @@ void CadastroCarroModelo(){
             printf("VALOR DA DIARIA: ");
             scanf("%f",&Carro.Preco);
 			Carro.Status = 1;
-            //bubblesortmodelo(Carro, TC+1); 
-
+			fseek(PtrCar, 0, 2);
             fwrite(&Carro,sizeof(TpCarro),1,PtrCar);
+
+            //bubbleSortPorModelo(PtrCar); 
 
             ExibeTelaoResp();
             gotoxy(27,6);
@@ -833,124 +974,144 @@ void CadastroCarroModelo(){
 
 
 
-//void CadastroLocacao(){
-//	TpCarro Car;
-//	TpCliente Cli;
-//	TpLocacao Loc;
-//    int i,AuxCod, posCliente, posCarro;
-//    char AuxCPF[15];
-//	FILE *PtrLoc = fopen("Locacao.dat","ab+");
-//	FILE *PtrCli = fopen("Clientes.dat","rb");
-//    ExibeTelaoResp();
-//    gotoxy(27,6);
-//    printf("### CADASTRO DE LOCACOES ###");
-//    gotoxy(4,8);
-//    printf("DIGITE UM CPF PARA INICIAR: ");
-//    fflush(stdin);
-//    gets(AuxCPF);
+void CadastroLocacao(){
+	TpCarro Carro;
+	TpCliente Cli;
+	TpLocacao Loc;
+    int AuxCod, posCliente, posCarro,posLocAtiva;
+    char AuxCPF[15];
+    
+	FILE *PtrLoc = fopen("Locacao.dat","rb+");
+	
+    ExibeTelaoResp();
+    gotoxy(27,6);
+    printf("### CADASTRO DE LOCACOES ###");
+    gotoxy(4,8);
+    printf("DIGITE UM CPF PARA INICIAR: ");
+    fflush(stdin);
+    gets(AuxCPF);
+    
+    while(strcmp(AuxCPF,"\0") != 0){
+    	FILE *PtrCli = fopen("Clientes.dat","rb");
+        posCliente = BuscaCliente(PtrCli, AuxCPF); 
+		fclose(PtrCli);
+		
+        if(posCliente != -1){ 
+            gotoxy(4,9);
+            printf("CPF ENCONTRADO");
+            gotoxy(4,10);
+            
+            printf("DIGITE O CODIGO DO CARRO: ");
+            scanf("%d", &AuxCod);
+			FILE *PtrCar = fopen("Carros.dat","rb");
+            posCarro = BuscaExaustivaCarroCodigo(PtrCar,AuxCod); 
+            
+            if(AuxCod > 0 && posCarro != -1) 
+			{
+				posLocAtiva = BuscaAtivaCodCarLoc(PtrLoc, AuxCod);
+				
+				if(posLocAtiva == -1) 
+				{
+					fseek(PtrCar,posCarro*sizeof(TpCarro),0);
+					fread(&Carro,sizeof(TpCarro),1,PtrCar);
+					strcpy(Loc.CPF,AuxCPF);
+					Loc.Codigo=AuxCod;
+	                printf("\nQuantidade de dias: ");
+	                scanf("%d",&Loc.Dias);
+	                Loc.ValorLocacao=Loc.Dias*Carro.Preco;
+	                printf("\nValor Locacao: %.2f",Loc.ValorLocacao);
+					Loc.Status=1;
+					
+					fseek(PtrLoc, 0, 2);
+					fwrite(&Loc,sizeof(TpLocacao),1,PtrLoc);
+					
+					// Chamar sua funcao de ordenacao de Locacao por CPF aqui
+					// Ex: insercaoDiretaLocacaoPorCPF(PtrLoc);
+					
+					ExibeTelaoResp();
+					gotoxy(27,11);
+					printf("LOCACAO CADASTRADA!");
+					Sleep(2000);
+				}
+				else
+				{
+					ExibeTelaoResp();
+	                gotoxy(27,6);
+	                printf("### CADASTRO DE LOCACOES ###");
+	                gotoxy(27,11);
+	                printf("ERRO: Este carro ja esta em uma locacao ativa!");
+	                Sleep(3000);
+				}
+            } else {
+                ExibeTelaoResp();
+                gotoxy(27,6);
+                printf("### CADASTRO DE LOCACOES ###");
+                gotoxy(27,11);
+                printf("CODIGO DO CARRO NAO ENCONTRADO OU INDISPONIVEL!");
+                Sleep(3000);
+            }
+			fclose(PtrCar);
+        } else {
+            ExibeTelaoResp();
+            gotoxy(27,6);
+            printf("### CADASTRO DE LOCACOES ###");
+            gotoxy(27,11);
+            printf("CPF NAO ENCONTRADO!");
+            Sleep(2000);
+        }
+        ExibeTelaoResp();
+        gotoxy(27,6);
+        printf("### CADASTRO DE LOCACOES ###");
+        gotoxy(4,8);
+        printf("DIGITE UM CPF PARA INICIAR: ");
+        fflush(stdin);
+        gets(AuxCPF);
+    }
+    fclose(PtrLoc);
+}
 
-//    while(strcmp(AuxCPF,"\0") != 0){
-//        posCliente = BuscaCliente(PtrCli, AuxCPF);
-//        if(posCliente != -1){
-//            gotoxy(4,9);
-//            printf("CPF ENCONTRADO");
-//			fclose(PtrCli);
-//            gotoxy(4,10);
-//            
-//            printf("DIGITE O CODIGO DO CARRO: ");
-//            scanf("%d", &AuxCod);
-//			FILE *PtrCar = fopen("Carros.dat","rb");
-//            posCarro = BuscaExaustivaCarroCodigo(PtrCar,AuxCod);
-//			fseek(PtrCar,posCarro,0);
-//			fread(Car,sizeof(TpCarro),1,PtrCar)
-//            if(AuxCod > 0 && posCarro != -1)
-//			{
-//                while(i < TL && !(strcmp(Loc[i].CPF, AuxCPF) == 0 && Loc[i].Codigo == AuxCod)){
-//                    i++;
-//                }
-
-//                if(feof(PtrCar)){
-//                    strcpy(Loc[TL].CPF, AuxCPF);
-//                    Loc[TL].Codigo = AuxCod;
-//                    gotoxy(4,11);
-//                    printf("CODIGO ENCONTRADO!");
-//                    gotoxy(4,12);
-//                    printf("QUANTOS DIAS DE LOCACAO: ");
-//                    scanf("%d", &Loc[TL].Dias);
-//                    Loc[TL].ValorLocacao = Loc[TL].Dias * Carro[posCarro].Preco;
-//                    printf("%.2f", Loc[TL].ValorLocacao);
-//                    TL++;
-
-//                    ExibeTelaoResp();
-//                    gotoxy(27,6);
-//                    printf("### CADASTRO DE LOCACOES ###");
-//                    gotoxy(27,11);
-//                    printf("LOCACAO CADASTRADA");
-//                    Sleep(3000);
-//                } else {
-//                    ExibeTelaoResp();
-//                    gotoxy(27,6);
-//                    printf("### CADASTRO DE LOCACOES ###");
-//                    gotoxy(27,11);
-//                    printf("LOCACAO JÁ EXISTE PARA ESTE CPF E CARRO!");
-//                    Sleep(2000);
-//                }
-
-//            } else {
-//                ExibeTelaoResp();
-//                gotoxy(27,6);
-//                printf("### CADASTRO DE LOCACOES ###");
-//                gotoxy(27,11);
-//                printf("CODIGO NAO ENCONTRADO!");
-//                Sleep(2000);
-//            }
-
-//        } else {
-//            ExibeTelaoResp();
-//            gotoxy(27,6);
-//            printf("### CADASTRO DE LOCACOES ###");
-//            gotoxy(27,11);
-//            printf("CPF NAO ENCONTRADO!");
-//            Sleep(2000);
-//        }
-
-//        ExibeTelaoResp();
-//        gotoxy(27,6);
-//        printf("### CADASTRO DE LOCACOES ###");
-//        gotoxy(4,8);
-//        printf("DIGITE UM CPF PARA INICIAR: ");
-//        fflush(stdin);
-//        gets(AuxCPF);
-//    }
-//}
 
 
 
-
-void ExibeLocacao(TpLocacao Loc[TF], int TL)
+void ExibeLocacao()
 {
-	int i, x=10;
+	TpLocacao Loc;
+	FILE *Ptr = fopen("Locacao.dat","rb");
+	int x = 10; 
+	
 	ExibeTelaoResp();
 	gotoxy(27,6);
-    printf("### Exibir Locacao ###");
-	if(TL == 0){
+	printf("### Exibir Locacao ###");
+	
+	if(Ptr == NULL)
+	{
 		gotoxy(27,11);
-		printf("Vetor Vazio!!!");
+		printf("Arquivo nao encontrado!!!");
 		Sleep(2000);
 	}
-	else
-		for(i=0;i<TL;i++)
+	else 
+	{ 
+		gotoxy(4,8);
+		printf("      CPF      ||     CODIGO     ||     DIAS     ||     VALOR     ");
+		gotoxy(4,9);
+		printf("-----------------||----------------||--------------||----------------");
+
+		fread(&Loc,sizeof(TpLocacao),1,Ptr);		
+		while(!feof(Ptr))
 		{
-			gotoxy(4,8);
-			printf("       CPF     ||     CODIGO     ||     DIAS     ||     VALOR    ");
-			gotoxy(4,9);
-			printf("               ||                ||              ||        ");
-			gotoxy(4,x);
-			printf("%s ||     %d        ||      %d       ||     %.2f \n",Loc[i].CPF,Loc[i].Codigo,Loc[i].Dias,Loc[i].ValorLocacao);
-			x++;
+			if(Loc.Status==1)
+			{
+				gotoxy(4,x);
+				printf("%s || %d || %d || R$ %.2f \n", Loc.CPF, Loc.Codigo, Loc.Dias, Loc.ValorLocacao);
 			
-			
+				x++;
+			}
+			fread(&Loc,sizeof(TpLocacao),1,Ptr);
 		}
+		
+		fclose(Ptr);
+	}
+	
 	getch();
 }
 
@@ -1642,50 +1803,388 @@ void ListaClientes3Locacoes(TpCliente Cliente[TF], int TC, TpLocacao Locacao[TF]
 //    }
 //    getch();
 //}
-//void ExclusaoCliente(TpCliente Cli[TF], int &TC, TpLocacao Loc[TF], int &TL){
-//	int i,j,pos;
-//	char CPF[15];
-//	ExibeTelaoResp();
-//	gotoxy(27,6);
-//	printf("### EXCLUI CLIENTE ###");
-//	gotoxy(4,8);
-//	printf("DIGITE UM CPF PARA BUSCAR E EXCLUIR: ");
-//	gets(CPF);
-//	pos = BuscaCliente(Cli,TC,CPF);
-//	if(pos == -1){
-//		gotoxy(4,9);
-//		printf("CPF INCEXISTENTE");
-//		Sleep(3000);;
-//	}else{
-//		for(i=0;i<TC;i++){
-//			if(strcmp(Cli[i].CPF,CPF)==0){
-//				for(j=i;j<TC-1;j++){
-//					Cli[j]=Cli[j+1];
-//				}
-//				TC--;
-//				
-//				for(i=0;i<TL;i++){
-//					if(strcmp(Loc[i].CPF,CPF)==0){
-//						for(j=i;j<TL-1;j++){
-//							Loc[j]=Loc[j+1];
-//						}
-//						TL--;
-//						i--;
-//						InsertionSortCli(Cli, TC);
-//					}
-//				}
-//				ExibeTelaoResp();
-//				gotoxy(27,6);
-//				printf("### EXCLUI CARRO ###");
-//				gotoxy(27,11);
-//				printf("CLIENTE E LOCACAO EXCLUIDOS");
-//				Sleep(3000);
-//			}
-//		}
-//	}
-//}
+void ExclusaoClienteLogica(){
+	TpCliente Cli;
+	TpLocacao Loc;
+	FILE *PtrCli = fopen("Clientes.dat","rb+");
 
-//void ExclusaoCarro(TpCarro Car[TF], int &TP, TpLocacao Loc[TF], int TL){
+	clrscr();
+	int pos;
+	char CPF[15];
+	
+	ExibeTelaoResp();
+	gotoxy(27,6);
+	printf("### EXCLUI CLIENTE ###");
+	gotoxy(4,8);
+	printf("DIGITE UM CPF PARA BUSCAR E EXCLUIR: ");
+	gets(CPF);
+
+	while(stricmp(CPF,"\0")!=0){
+		rewind(PtrCli);
+		pos = BuscaCliente(PtrCli,CPF);
+		
+		if(pos == -1){
+			gotoxy(4,9);
+			printf("CPF INCEXISTENTE");
+			Sleep(3000);
+		}else{
+			printf("\nCliente Encontrado!");
+			fseek(PtrCli,pos,0);
+			fread(&Cli,sizeof(TpCliente),1,PtrCli);
+			
+			Cli.Status=0;
+			
+			fseek(PtrCli,pos,0);
+			fwrite(&Cli,sizeof(TpCliente),1,PtrCli);
+			fflush(PtrCli);
+			
+			FILE *Ptr = fopen("Locacao.dat","rb+");
+			
+			if (Ptr == NULL) {
+				gotoxy(4, 10);
+				printf("ERRO: Nao foi possivel abrir Locacao.dat");
+				Sleep(3000);
+			} else {
+				pos = BuscaExaustivaCPFLoc(Ptr, CPF);
+				while(pos != -1)
+				{
+					fseek(Ptr, pos, 0); 
+					fread(&Loc, sizeof(TpLocacao), 1, Ptr); 
+					Loc.Status = 0; 
+					fseek(Ptr, pos, 0); 
+					fwrite(&Loc, sizeof(TpLocacao), 1, Ptr); 
+					pos = BuscaExaustivaCPFLoc(Ptr, CPF); 
+				}
+				fclose(Ptr);
+			}
+
+			ExibeTelaoResp();
+			gotoxy(27,11);
+			printf("CLIENTE EXCLUIDO");
+			gotoxy(27,12);
+			printf("LOCACOES EXCLUIDAS");
+			Sleep(3000);
+		}
+		
+		clrscr();
+		ExibeTelaoResp();
+		gotoxy(27,6);
+		printf("### EXCLUI CLIENTE ###");
+		gotoxy(4,8);
+		printf("DIGITE UM CPF PARA BUSCAR E EXCLUIR: ");
+		gets(CPF);
+	}
+	
+	fclose(PtrCli);
+}
+
+void ExclusaoClienteFisica(){
+	TpCliente Cli;
+	TpLocacao Loc;
+	char CPF[15];
+	int pos;
+	printf("\nExclusao Fisica de Cliente\n");
+	printf("\nDigite um CPF: ");
+	gets(CPF);
+	while(strcmp(CPF,"\0")!=0)
+	{
+		FILE *PtrCli = fopen("Clientes.dat","rb");
+		FILE *PtrLoc = fopen ("Locacao.dat","rb");
+		pos = BuscaCliente(PtrCli,CPF);
+		if(pos == -1)
+		{
+			printf("\nCPF Nao encontrado");
+			getch();
+		}else{
+			printf("\nCPF encontrado");
+			fseek(PtrCli,pos,0);
+			fread(&Cli,sizeof(TpCliente),1,PtrCli);
+			printf(" CPF   ||                Nome                  ||     FONE");
+			printf(" %s ", Cli.CPF);
+			printf("||");
+			printf(" %s ", Cli.Nome);
+			printf("||");
+			printf(" %s ", Cli.fone);
+			printf("\nDeseja Excluir(S/N): ");
+			if(toupper(getche())=='S'){
+				FILE *Ptr = fopen("Temp.dat","wb");
+				rewind(PtrCli);
+				fread(&Cli,sizeof(TpCliente),1,PtrCli);
+				while(!feof(PtrCli)){
+					if(strcmp(CPF,Cli.CPF)!=0 && Cli.Status==1)
+						fwrite(&Cli,sizeof(TpCliente),1,Ptr);
+					fread(&Cli,sizeof(TpCliente),1,PtrCli);
+				}
+				fclose(PtrCli);
+				fclose(Ptr);
+				remove("Clientes.dat");
+				rename("Temp.dat","Clientes.dat");
+				printf("\nCliente Excluido do Banco de Dados");
+				FILE *PtrT = fopen("Temp.dat","wb");	
+				rewind(PtrLoc);
+				fread(&Loc,sizeof(TpLocacao),1,PtrLoc);
+				while(!feof(PtrLoc))
+				{
+					if(strcmp(CPF,Loc.CPF)!=0 && Loc.Status==1)
+						fwrite(&Loc,sizeof(TpLocacao),1,PtrT);
+					fread(&Loc,sizeof(TpLocacao),1,PtrLoc);
+				}
+				fclose(PtrLoc);
+				fclose(PtrT);
+				remove("Locacao.dat");
+				rename("Temp.dat","Locacao.dat");
+				printf("\nLocacao excluida do banco de dados");
+			}
+		}
+		getch();
+		clrscr();
+		printf("\nDigite um CPF: ");
+		gets(CPF);
+	}
+}
+
+void ExclusaoCarroLogica(){
+	TpCarro Car;
+	TpLocacao Loc;
+	FILE *PtrCar = fopen("Carro.dat","rb+");
+	clrscr();
+	int pos,Cod;
+	
+	ExibeTelaoResp();
+	gotoxy(27,6);
+	printf("### EXCLUI CODIGO ###");
+	gotoxy(4,8);
+	printf("DIGITE UM CODIGO PARA BUSCAR E EXCLUIR: ");
+	scanf("%d",&Cod);
+
+	while(Cod!=0){
+		rewind(PtrCar);
+		pos = BuscaExaustivaCarroCodigo(PtrCar,Cod);
+		
+		if(pos == -1){
+			gotoxy(4,9);
+			printf("CODIGO INEXISTENTE");
+			Sleep(3000);
+		}else{
+			printf("\nCarro Encontrado!");
+			fseek(PtrCar,pos,0);
+			fread(&Car,sizeof(TpCarro),1,PtrCar);
+			
+			Car.Status=0;
+			
+			fseek(PtrCar,pos,0);
+			fwrite(&Car,sizeof(TpCarro),1,PtrCar);
+			
+			FILE *Ptr = fopen("Locacao.dat","rb+");
+			
+			if (Ptr == NULL) {
+				gotoxy(4, 10);
+				printf("ERRO: Nao foi possivel abrir Locacao.dat");
+				Sleep(3000);
+			} else {
+				pos = BuscaLocacaoInt(Ptr,Cod);
+				while(pos!=-1)
+				{
+					fseek(Ptr,pos,0);
+					fread(&Loc,sizeof(TpLocacao),1,Ptr);
+					Loc.Status=0;
+					fseek(Ptr,pos,0);
+					fwrite(&Loc,sizeof(TpLocacao),1,Ptr);
+					pos = BuscaLocacaoInt(Ptr,Cod);
+				}
+				fclose(Ptr);
+			}
+
+			ExibeTelaoResp();
+			gotoxy(27,11);
+			printf("CARRO EXCLUIDO");
+			gotoxy(27,12);
+			printf("LOCACOES EXCLUIDAS");
+			Sleep(3000);
+		}
+		
+		clrscr();
+		ExibeTelaoResp();
+		gotoxy(27,6);
+		printf("### EXCLUI CARRO ###");
+		gotoxy(4,8);
+		printf("DIGITE UM CODIGO PARA BUSCAR E EXCLUIR: ");
+		scanf("%d",&Cod);
+	}
+	
+	fclose(PtrCar);
+}
+
+void ExclusaoCarroFisica(){
+	TpCarro Car;
+	TpLocacao Loc;
+	FILE *PtrCar = fopen("Carros.dat","rb");
+	FILE *PtrLoc = fopen ("Locacao.dat","rb");
+	int pos,Cod;
+	printf("\nExclusao Fisica de Carros\n");
+	printf("\nDigite um Codigo: ");
+	scanf("%d",&Cod);
+	while(Cod!=0)
+	{
+		FILE *PtrCar = fopen("Carros.dat","rb");
+		FILE *PtrLoc = fopen ("Locacao.dat","rb");
+		pos = BuscaExaustivaCarroCodigo(PtrCar,Cod);
+		if(pos == -1)
+		{
+			printf("\nCodigo Nao encontrado");
+			getch();
+		}else{
+			printf("\nCodigo encontrado");
+			fseek(PtrCar,pos,0);
+			fread(&Car,sizeof(TpCarro),1,PtrCar);
+			printf("+-----+----------------------+------------------+---------------+\n");
+			printf("| COD | MODELO               | CATEGORIA        | PRECO (R$)    |\n");
+			printf("+-----+----------------------+------------------+---------------+\n");
+			printf("| \t%d\t | \t%s\t | \t%s\t | \tR$ %.2f\t \t|\n", 
+				   Car.Cod, 
+				   Car.Modelo, 
+				   Car.Categoria, 
+				   Car.Preco);
+			printf("+-----+----------------------+------------------+---------------+\n");
+			printf("\nDeseja Excluir(S/N): ");
+			if(toupper(getche())=='S'){
+				FILE *Ptr = fopen("Temp.dat","wb");
+				rewind(PtrCar);
+				fread(&Car,sizeof(TpCarro),1,PtrCar);
+				while(!feof(PtrCar)){
+					if(Cod!=Car.Cod && Car.Status==1)
+						fwrite(&Car,sizeof(TpCarro),1,Ptr);
+					fread(&Car,sizeof(TpCarro),1,PtrCar);
+				}
+				fclose(PtrCar);
+				fclose(Ptr);
+				remove("Carros.dat");
+				rename("Temp.dat","Carros.dat");
+				printf("\nCarros Excluido do Banco de Dados");
+				FILE *PtrT = fopen("Temp.dat","wb");	
+				rewind(PtrLoc);
+				fread(&Loc,sizeof(TpLocacao),1,PtrLoc);
+				while(!feof(PtrLoc))
+				{
+					if(Cod!=Loc.Codigo && Loc.Status==1)
+						fwrite(&Loc,sizeof(TpLocacao),1,PtrT);
+					fread(&Loc,sizeof(TpLocacao),1,PtrLoc);
+				}
+				fclose(PtrLoc);
+				fclose(PtrT);
+				remove("Locacao.dat");
+				rename("Temp.dat","Locacao.dat");
+				printf("\nLocacao excluida do banco de dados");
+			}
+		}
+		getch();
+		clrscr();
+		printf("\nDigite um Codigo: ");
+		scanf("%d",&Cod);
+	}
+}
+
+void ExclusaoLocacaoLogica(){
+	TpLocacao Loc;
+	FILE *PtrLoc = fopen("Locacao.dat","rb+");
+	clrscr();
+	int pos,Cod;
+	char CPF[15];
+	
+	ExibeTelaoResp();
+	gotoxy(27,6);
+	printf("### EXCLUI LOCACAO ###");
+	gotoxy(4,8);
+	printf("DIGITE UM CPF PARA BUSCAR E EXCLUIR: ");
+	gets(CPF);
+
+	while(strcmp(CPF,"\0")!=0){
+		pos = BuscaExaustivaCPFLoc(PtrLoc,CPF);
+		
+		if(pos == -1){
+			gotoxy(4,9);
+			printf("CPF INEXISTENTE");
+			Sleep(3000);
+		}else{
+			printf("\nCPF Encontrado!");
+			while(pos!=-1)
+			{
+				fseek(PtrLoc,pos,0);
+				fread(&Loc,sizeof(TpLocacao),1,PtrLoc);
+				Loc.Status=0;
+			
+				fseek(PtrLoc,pos,0);
+				fwrite(&Loc,sizeof(TpLocacao),1,PtrLoc);
+				pos = BuscaExaustivaCPFLoc(PtrLoc,CPF);
+			}
+
+			ExibeTelaoResp();
+			gotoxy(27,11);
+			printf("LOCACAO EXCLUIDO");
+			Sleep(3000);
+		}
+		
+		clrscr();
+		ExibeTelaoResp();
+		gotoxy(27,6);
+		printf("### EXCLUI LOCACAO ###");
+		gotoxy(4,8);
+		printf("DIGITE UM CPF PARA BUSCAR E EXCLUIR: ");
+		gets(CPF);
+	}
+	
+	fclose(PtrLoc);
+}
+
+void ExclusaoLocacaoFisica(){
+	TpLocacao Loc;
+	FILE *PtrLoc = fopen ("Locacao.dat","rb");
+	int pos;
+	char CPF[15];
+	printf("\nExclusao Fisica de Locacao\n");
+	printf("\nDigite um CPF: ");
+	gets(CPF);
+	while(strcmp(CPF,"\0")!=0)
+	{
+		pos = BuscaExaustivaCPFLoc(PtrLoc,CPF);
+		if(pos == -1)
+		{
+			printf("\nCPF Nao encontrado");
+			getch();
+		}else{
+			printf("\nCPF encontrado");
+			fseek(PtrLoc,pos,0);
+			fread(&Loc,sizeof(TpLocacao),1,PtrLoc);
+			printf("+-----+----------------------+------------------+---------------+\n");
+			printf("| CPF | COD               | QUANT DIAS        | VALOR LOC (R$)    |\n");
+			printf("+-----+----------------------+------------------+---------------+\n");
+			printf("| \t%s\t | \t%d\t | \t%d\t | \tR$ %.2f\t \t|\n", Loc.CPF,Loc.Codigo,Loc.Dias,Loc.ValorLocacao);
+			printf("+-----+----------------------+------------------+---------------+\n");
+			printf("\nDeseja Excluir(S/N): ");
+			if(toupper(getche())=='S'){
+				FILE *Ptr = fopen("Temp.dat","wb");
+				rewind(PtrLoc);
+				fread(&Loc,sizeof(TpLocacao),1,PtrLoc);
+				while(!feof(PtrLoc)){
+					if(pos!=-1)
+						fwrite(&Loc,sizeof(TpLocacao),1,Ptr);
+					fread(&Loc,sizeof(TpLocacao),1,PtrLoc);
+				}
+				fclose(PtrLoc);
+				fclose(Ptr);
+				remove("Locacao.dat");
+				rename("Temp.dat","Locacao.dat");
+				printf("\nLocacao Excluida do Banco de Dados");
+			}
+		}
+		getch();
+		clrscr();
+		printf("\nDigite um CPF: ");
+		gets(CPF);
+	}
+}
+
+///void ExclusaoCarro(TpCarro Car[TF], int &TP, TpLocacao Loc[TF], int TL){
 //	int i,j,Cod,pos;
 //	char resp;
 //	ExibeTelaoResp();
@@ -1819,10 +2318,9 @@ void ListaClientes3Locacoes(TpCliente Cliente[TF], int TC, TpLocacao Locacao[TF]
 
 
 void Executar(){
-	TpCliente Cliente[TF];
-	TpCarro Carro[TF];
-	TpLocacao Locacao[TF];
-	int TC=0,TP=0,TL=0;
+	TpCliente Cliente;
+	TpCarro Carro;
+	TpLocacao Locacao;
 	CriarArquivos();
 	char opcao,AuxCPF[15];
 	do{
@@ -1845,15 +2343,15 @@ void Executar(){
 									break;
 									
 									case'B':
-										//CadastroCarroModelo(Carro,TP);
+										CadastroCarroModelo();
 									break;
 								} 
 							}while(opcao!='C');
 							break;
 						case 'C':
-							//CadastroLocacao(Locacao, TL, Cliente, TC, Carro, TP);
+							CadastroLocacao();
 							break;
-						case 'D':CadastroAuto(Cliente,Carro,Locacao,TC,TP,TL);
+						case 'D'://CadastroAuto(Cliente,Carro,Locacao,TC,TP,TL);
 							clrscr();
 							break;	
 					}
@@ -1865,7 +2363,15 @@ void Executar(){
 					opcao = MenuExcluir();
 					switch(opcao){
 						case 'A':
-							//ExclusaoCliente(Cliente,TC,Locacao,TL);
+							opcao = MenuExcluirCliente();
+							switch(opcao){
+								case 'A':
+									ExclusaoClienteLogica();
+									break;
+								case 'B':
+									ExclusaoClienteFisica();
+									break;
+							}
 							break;
 						case 'B':
 							//ExclusaoCarro(Carro,TP,Locacao,TL);
@@ -1907,7 +2413,7 @@ void Executar(){
 								break;
 							case 'C':
 								clrscr();
-							//	ExibeLocacao(Locacao,TL);
+								ExibeLocacao();
 								break;
 						}
 					}while(opcao!='D');
